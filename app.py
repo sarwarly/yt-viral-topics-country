@@ -65,40 +65,39 @@ if st.button("Analyze Video"):
     stats = video.get("statistics", {})
 
     # =========================
-    # OUTPUT
-    # =========================
-    st.subheader("📌 Video Details")
+# OUTPUT
+# =========================
+st.subheader("📌 Video Details")
 
-    st.markdown(f"**Title:** {snippet.get('title', 'N/A')}")
-    st.markdown(f"**Channel:** {snippet.get('channelTitle', 'N/A')}")
-    st.markdown(f"**Published At:** {snippet.get('publishedAt', 'N/A')}")
+st.markdown("### 🎬 Title (Click copy)")
+st.code(snippet.get("title", "N/A"), language="text")
 
-    st.subheader("🖼 Thumbnail")
-    st.image(snippet["thumbnails"]["high"]["url"])
+st.markdown("### 📺 Channel")
+st.write(snippet.get("channelTitle", "N/A"))
 
-    st.subheader("📝 Description")
-    st.text_area(
-        "Video Description",
-        snippet.get("description", ""),
-        height=200
-    )
+st.markdown("### 🖼 Thumbnail")
+st.image(snippet["thumbnails"]["high"]["url"])
 
-    st.subheader("🏷 Tags (if available)")
-    tags = snippet.get("tags", [])
+st.markdown("### 📝 Description (Click copy)")
+st.code(snippet.get("description", "N/A"), language="text")
 
-    if tags:
-        st.write(", ".join(tags))
-    else:
-        st.warning("No tags found (uploader may have hidden them).")
+st.markdown("### 🏷 Tags (Click copy)")
+tags = snippet.get("tags", [])
 
-    st.subheader("📊 Statistics")
-    st.write({
-        "Views": stats.get("viewCount", "N/A"),
-        "Likes": stats.get("likeCount", "N/A"),
-        "Comments": stats.get("commentCount", "N/A"),
-    })
+if tags:
+    st.code(", ".join(tags), language="text")
+else:
+    st.warning("No tags found (uploader may have hidden them).")
 
-    st.info(
-        "Tip: Use this data to study **structure and wording**, "
-        "then rewrite everything in your own way for *Last Breath Rescue*."
-    )
+st.markdown("### 📊 Statistics")
+st.write({
+    "Views": stats.get("viewCount", "N/A"),
+    "Likes": stats.get("likeCount", "N/A"),
+    "Comments": stats.get("commentCount", "N/A"),
+})
+
+st.info(
+    "You can copy **title, description, and tags** using the copy button. "
+    "Rewrite everything in your own words before using."
+)
+
