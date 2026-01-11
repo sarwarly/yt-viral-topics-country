@@ -9,42 +9,67 @@ API_KEY = "AIzaSyBnmylzZY6Up8JLXMokflSP3jGsIX0mCH4"
 YOUTUBE_VIDEO_URL = "https://www.googleapis.com/youtube/v3/videos"
 
 # =========================
+# PAGE CONFIG (IMPORTANT)
+# =========================
+st.set_page_config(
+    page_title="YouTube Video Analyzer",
+    page_icon="🎬",
+    layout="wide"
+)
+
+# =========================
 # HELPERS
 # =========================
 def extract_video_id(url: str):
-    """Extract video ID from YouTube URL"""
     parsed = urlparse(url)
-
     if parsed.hostname in ("www.youtube.com", "youtube.com"):
         return parse_qs(parsed.query).get("v", [None])[0]
-
     if parsed.hostname == "youtu.be":
         return parsed.path.lstrip("/")
-
     return None
 
 # =========================
-# UI
+# SIDEBAR (INPUTS)
 # =========================
-st.title("🔍 YouTube Video Analyzer (For Faceless Channels)")
+with st.sidebar:
+    st.markdown("## 🎯 Video Analyzer")
+    st.markdown(
+        "Analyze any YouTube video to extract **title, description, thumbnail, "
+        "and available tags**.\n\n"
+        "Built for **faceless creators**."
+    )
 
+    video_url = st.text_input(
+        "YouTube Video URL",
+        placeholder="https://www.youtube.com/watch?v=XXXXXXXX"
+    )
+
+    analyze = st.button("🔍 Analyze Video", use_container_width=True)
+
+# =========================
+# MAIN HEADER
+# =========================
 st.markdown(
-    "Paste a **YouTube video URL** to extract metadata like "
-    "**title, description, thumbnail, and tags**. "
-    "Useful for studying formats and rewriting safely."
+    """
+    <h1 style="margin-bottom: 0;">🎬 YouTube Video Intelligence</h1>
+    <p style="color: #888; margin-top: 4px;">
+        Clean metadata extraction for faceless & automation channels
+    </p>
+    """,
+    unsafe_allow_html=True
 )
 
-video_url = st.text_input(
-    "Enter YouTube Video URL",
-    placeholder="https://www.youtube.com/watch?v=XXXXXXXXXXX"
-)
+st.divider()
 
-if st.button("Analyze Video"):
+# =========================
+# ANALYSIS
+# =========================
+if analyze:
 
     video_id = extract_video_id(video_url)
 
     if not video_id:
-        st.error("Invalid YouTube URL. Please check and try again.")
+        st.error("❌ Invalid YouTube URL")
         st.stop()
 
     params = {
@@ -57,7 +82,7 @@ if st.button("Analyze Video"):
     items = res.get("items", [])
 
     if not items:
-        st.error("Video not found or API access issue.")
+        st.error("Video not found or API error.")
         st.stop()
 
     video = items[0]
@@ -65,39 +90,55 @@ if st.button("Analyze Video"):
     stats = video.get("statistics", {})
 
     # =========================
-# OUTPUT
-# =========================
-st.subheader("📌 Video Details")
+    # VIDEO PREVIEW CARD
+    # =========================
+    col1, col2 = st.columns([1, 2], gap="large")
 
-st.markdown("### 🎬 Title (Click copy)")
-st.code(snippet.get("title", "N/A"), language="text")
+    with col1:
+        st.image(
+            snippet["thumbnails"]["high"]["url"],
+            use_container_width=True
+        )
 
-st.markdown("### 📺 Channel")
-st.write(snippet.get("channelTitle", "N/A"))
+    with col2:
+        st.markdown("### 🎬 Video Title")
+        st.code(snippet.get("title", ""), language="text")
 
-st.markdown("### 🖼 Thumbnail")
-st.image(snippet["thumbnails"]["high"]["url"])
+        st.markdown("**Channel:** " + snippet.get("channelTitle", "N/A"))
+        st.markdown("**Published:** " + snippet.get("publishedAt", "N/A")[:10])
 
-st.markdown("### 📝 Description (Click copy)")
-st.code(snippet.get("description", "N/A"), language="text")
+    st.divider()
 
-st.markdown("### 🏷 Tags (Click copy)")
-tags = snippet.get("tags", [])
+    # =========================
+    # DESCRIPTION
+    # =========================
+    st.markdown("### 📝 Description (Click to copy)")
+    st.code(snippet.get("description", ""), language="text")
 
-if tags:
-    st.code(", ".join(tags), language="text")
-else:
-    st.warning("No tags found (uploader may have hidden them).")
+    # =========================
+    # TAGS
+    # =========================
+    st.markdown("### 🏷 Tags")
+    tags = snippet.get("tags", [])
 
-st.markdown("### 📊 Statistics")
-st.write({
-    "Views": stats.get("viewCount", "N/A"),
-    "Likes": stats.get("likeCount", "N/A"),
-    "Comments": stats.get("commentCount", "N/A"),
-})
+    if tags:
+        st.code(", ".join(tags), language="text")
+    else:
+        st.warning("Tags not publicly available for this video.")
 
-st.info(
-    "You can copy **title, description, and tags** using the copy button. "
-    "Rewrite everything in your own words before using."
-)
+    # =========================
+    # STATS ROW
+    # =========================
+    st.divider()
+    st.markdown("### 📊 Performance")
 
+    s1, s2, s3 = st.columns(3)
+
+    s1.metric("Views", stats.get("viewCount", "N/A"))
+    s2.metric("Likes", stats.get("likeCount", "N/A"))
+    s3.metric("Comments", stats.get("commentCount", "N/A"))
+
+    st.info(
+        "Use this data for **analysis and inspiration only**. "
+        "Always rewrite titles and descriptions in your own words."
+    )
