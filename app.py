@@ -1,135 +1,77 @@
-
 import streamlit as st
 import requests
-from datetime import datetime, timedelta
+from collections import Counter
 
-# =========================
-# CONFIG
-# =========================
 API_KEY = "AIzaSyBnmylzZY6Up8JLXMokflSP3jGsIX0mCH4"
 
-YOUTUBE_SEARCH_URL = "https://www.googleapis.com/youtube/v3/search"
-YOUTUBE_VIDEO_URL = "https://www.googleapis.com/youtube/v3/videos"
-YOUTUBE_CHANNEL_URL = "https://www.googleapis.com/youtube/v3/channels"
+YOUTUBE_TRENDING_URL = "https://www.googleapis.com/youtube/v3/videos"
 
-MAX_RESULTS = 5
-MAX_SUBSCRIBERS = 3000
+st.title("🌍 YouTube Viral Topics Finder (By Country)")
 
-KEYWORDS = list(dict.fromkeys([
-    "wildlife",
-    "AnimalRescue",
-    "SaveAnimals",
-    "RescueAnimals",
-    "DogRescue",
-    "FarmAnimalRescue",
-    "wildlife rescues",
-    "animal rescues",
-    "rescue channel",
-    "rescues channel",
-    "animal rescue",
-    "cat rescues",
-    "Wildlife Animal Rescue",
-    "Wildlife animal rescue"
-]))
-
-# =========================
-# STREAMLIT UI
-# =========================
-st.title("🐾 YouTube Viral Topics – Animal Rescue")
-
-days = st.number_input(
-    "Enter Days to Search (1–30):",
-    min_value=1,
-    max_value=30,
-    value=7
+# -------- UI --------
+country = st.selectbox(
+    "Select Country",
+    {
+        "United States": "US",
+        "India": "IN",
+        "Bangladesh": "BD",
+        "United Kingdom": "GB",
+        "Canada": "CA"
+    }
 )
 
-if st.button("Fetch Data"):
-    start_date = (datetime.utcnow() - timedelta(days=int(days))).isoformat("T") + "Z"
-    all_results = []
+video_type = st.radio(
+    "Video Type",
+    ["Both", "Shorts", "Long"]
+)
 
-    for keyword in KEYWORDS:
-        st.write(f"🔍 Searching: **{keyword}**")
+max_results = st.slider(
+    "Number of trending videos to analyze",
+    10, 50, 25
+)
 
-        try:
-            search_params = {
-                "part": "snippet",
-                "q": keyword,
-                "type": "video",
-                "order": "viewCount",
-                "publishedAfter": start_date,
-                "maxResults": MAX_RESULTS,
-                "key": API_KEY,
-            }
+# -------- Fetch Button --------
+if st.button("Find Viral Topics"):
 
-            search_res = requests.get(YOUTUBE_SEARCH_URL, params=search_params, timeout=15).json()
-            videos = search_res.get("items", [])
+    params = {
+        "part": "snippet,contentDetails,statistics",
+        "chart": "mostPopular",
+        "regionCode": country,
+        "maxResults": max_results,
+        "key": API_KEY
+    }
 
-            if not videos:
-                continue
+    res = requests.get(YOUTUBE_TRENDING_URL, params=params).json()
+    videos = res.get("items", [])
 
-            video_ids = [v["id"]["videoId"] for v in videos]
-            channel_ids = [v["snippet"]["channelId"] for v in videos]
+    if not videos:
+        st.warning("No data found.")
+        st.stop()
 
-            video_stats = requests.get(
-                YOUTUBE_VIDEO_URL,
-                params={"part": "statistics", "id": ",".join(video_ids), "key": API_KEY},
-                timeout=15
-            ).json()
+    topic_phrases = []
 
-            channel_stats = requests.get(
-                YOUTUBE_CHANNEL_URL,
-                params={"part": "statistics", "id": ",".join(channel_ids), "key": API_KEY},
-                timeout=15
-            ).json()
+    for v in videos:
+        duration = v["contentDetails"]["duration"]
 
-            video_stat_map = {
-                v["id"]: v["statistics"] for v in video_stats.get("items", [])
-            }
-            channel_stat_map = {
-                c["id"]: c["statistics"] for c in channel_stats.get("items", [])
-            }
+        # Shorts / Long filtering
+        is_short = "M" not in duration or duration.startswith("PT0")
 
-            for v in videos:
-                vid = v["id"]["videoId"]
-                cid = v["snippet"]["channelId"]
+        if video_type == "Shorts" and not is_short:
+            continue
+        if video_type == "Long" and is_short:
+            continue
 
-                views = int(video_stat_map.get(vid, {}).get("viewCount", 0))
-                subs = int(channel_stat_map.get(cid, {}).get("subscriberCount", 0))
+        title = v["snippet"]["title"].lower()
 
-                if subs <= MAX_SUBSCRIBERS and views > 0:
-                    all_results.append({
-                        "Keyword": keyword,
-                        "Title": v["snippet"]["title"],
-                        "Description": v["snippet"]["description"][:200],
-                        "URL": f"https://www.youtube.com/watch?v={vid}",
-                        "Views": views,
-                        "Subscribers": subs
-                    })
+        words = [w for w in title.split() if len(w) > 3]
+        topic_phrases.extend(words)
 
-        except Exception as e:
-            st.warning(f"Error with keyword '{keyword}': {e}")
+    counter = Counter(topic_phrases)
+    common_topics = counter.most_common(15)
 
-    # =========================
-    # OUTPUT
-    # =========================
-    if all_results:
-        all_results.sort(key=lambda x: x["Views"], reverse=True)
-        st.success(f"Found {len(all_results)} results!")
+    st.subheader("🔥 Viral Topic Signals")
 
-        for r in all_results:
-            st.markdown(
-                f"""
-**🎬 Title:** {r['Title']}  
-**🔑 Keyword:** {r['Keyword']}  
-**👁 Views:** {r['Views']:,}  
-**👥 Subscribers:** {r['Subscribers']:,}  
-**🔗 URL:** [Watch Video]({r['URL']})  
+    for topic, count in common_topics:
+        st.write(f"**{topic}** — appears in {count} trending videos")
 
-_{r['Description']}_  
----
-"""
-            )
-    else:
-        st.warning("No suitable low-subscriber videos found.")
 
