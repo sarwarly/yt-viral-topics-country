@@ -54,7 +54,8 @@ if st.button("Find Viral Topics"):
         duration = v["contentDetails"]["duration"]
 
         # Shorts / Long filtering
-        is_short = "M" not in duration or duration.startswith("PT0")
+        # Convert ISO duration to seconds (simple version) 
+        is_short = duration.startswith("PT") and "M" not in duration
 
         if video_type == "Shorts" and not is_short:
             continue
