@@ -1,12 +1,11 @@
 import streamlit as st
 import requests
-from collections import Counter
+from collections import Counter, defaultdict
 
 # =========================
 # CONFIG
 # =========================
 API_KEY = "AIzaSyBnmylzZY6Up8JLXMokflSP3jGsIX0mCH4"
-
 YOUTUBE_TRENDING_URL = "https://www.googleapis.com/youtube/v3/videos"
 
 STOP_WORDS = {
@@ -52,7 +51,6 @@ if st.button("Find Viral Topics"):
     data = response.json()
     videos = data.get("items", [])
 
-    # ---- Debug / safety ----
     st.write(f"Fetched {len(videos)} trending videos")
 
     if not videos:
@@ -60,12 +58,15 @@ if st.button("Find Viral Topics"):
         st.stop()
 
     # =========================
-    # TOPIC EXTRACTION
+    # TOPIC EXTRACTION + VIDEO MAP
     # =========================
-    topic_words = []
+    topic_counter = Counter()
+    topic_videos = defaultdict(list)
 
     for v in videos:
         title = v["snippet"]["title"].lower()
+        video_url = f"https://www.youtube.com/watch?v={v['id']}"
+        channel = v["snippet"]["channelTitle"]
 
         words = [
             w.strip(".,!?()[]{}")
@@ -73,14 +74,15 @@ if st.button("Find Viral Topics"):
             if len(w) > 3 and w not in STOP_WORDS
         ]
 
-        topic_words.extend(words)
+        for w in set(words):
+            topic_counter[w] += 1
+            topic_videos[w].append({
+                "title": v["snippet"]["title"],
+                "url": video_url,
+                "channel": channel
+            })
 
-    if not topic_words:
-        st.warning("No usable words extracted from titles.")
-        st.stop()
-
-    counter = Counter(topic_words)
-    common_topics = counter.most_common(15)
+    common_topics = topic_counter.most_common(10)
 
     # =========================
     # OUTPUT
@@ -88,9 +90,17 @@ if st.button("Find Viral Topics"):
     st.subheader(f"🔥 Viral Topic Signals in {country_name}")
 
     for topic, count in common_topics:
-        st.write(f"**{topic}** — appears in {count} trending videos")
+        st.markdown(f"## 🔹 **{topic}**  ({count} videos)")
+
+        examples = topic_videos[topic][:3]  # show max 3 examples
+
+        for ex in examples:
+            st.markdown(
+                f"- [{ex['title']}]({ex['url']})  \n"
+                f"  *Channel:* {ex['channel']}"
+            )
 
     st.info(
-        "Tip: Repeated words across trending videos indicate rising or dominant topics. "
-        "Ignore filler words and focus on intent words."
+        "Tip: Topics with multiple examples from different channels "
+        "indicate real momentum. Study format, hooks, and length — not just views."
     )
